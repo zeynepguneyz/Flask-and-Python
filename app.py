@@ -1,37 +1,44 @@
-import sqlite3
-import Flask, redirect, render_template, request, session
-from flask_session import Session
+import Flask, redirect, render_template, request
 
-# Configure app
 app = Flask(__name__)
 
-# Connect to database
-db = SQL("sqlite:///store.db")
+db = SQL("sqlite:///froshims.db")
 
-# Configure session
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] ="filesystem"
-Session(app)
+SPORTS = [
+    "Basketball",
+    "Soccer",
+    "Ultimate Frisbee"
+]
 
 @app.route("/")
 def index():
-    books = db.execute("SELECT * FROM books")
-    return render_template("books.html", books=books)
+    return render_template("index.html", sports=SPORTS)
 
-@app.route("/cart", methods=["GET", "POST"])
-def cart():
+@app.route("/deregister", method=["POST"])
+def deregister():
 
-    # Ensure cart exists
-    if "cart" not in session:
-        session["cart"] = []
+    # Forget registrant
+    id = request.form.get("id")
+    if id:
+        db.execute("DELETE FROM registrants WHERE id = ?", id)
+    return redirect("/registrants")
 
-    # POST
-    if request.method == "POST":
-        id = request.form.get("id")
-        if id:
-            session["cart"].append(id)
-        return redirect("/cart")
-    
-    # GET
-    books = db.execute("SELECT * FROM books WHERE id IN (?)", session["cart"])
-    return render_template("cart.html", books=books)
+@app.route("/register", methods=["POST"])
+def register():
+
+    # Validate submission
+    name = request.form.get("name")
+    sport = request.form.get("sport")
+    if not name or sport not in SPORTS:
+        return render_template("failure.html")
+
+    # Remember registrant
+    db.execute("INSERT INTO registrants (name, sport) VALUES(?, ?)", name, sport)
+
+    # Confirm registration
+    return redirect("/registrants")
+
+@app.route("/registrants")
+def registrants():
+    registrants = db.execute("SELECT * FROM registrants")
+    return render_template("registrants.html", registrants=registrants)
